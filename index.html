@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hostlist Compressor</title>
+    <link href="https://unpkg.com/@douyinfe/semi-ui@2.78.0/dist/css/semi.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/@douyinfe/semi-ui@2.78.0/dist/umd/semi-ui.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: var(--semi-color-bg-1);
+            color: var(--semi-color-text-0);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .semi-card {
+            max-width: 1000px;
+            margin: auto;
+            padding: 20px;
+            background-color: var(--semi-color-bg-1);
+            transition: background-color 0.3s;
+            box-shadow: none;
+        }
+        .semi-textarea, textarea, #filteredText{
+            background-color: var(--semi-color-bg-1);
+            color: var(--semi-color-text-0);
+            border-color: var(--semi-color-border);
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .semi-card {
+                width: 100%;
+                max-width: 100%;
+                padding: 10px;
+                box-shadow: none;
+            }
+            .semi-space {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: space-between;
+            }
+            .semi-button {
+                width: calc(50% - 4px);
+                margin-right: 0 !important;
+            }
+            #dedupeBtn {
+                background-color: var(--semi-color-info);
+            }
+            #clearBtn {
+                width: calc(100% - 4px);
+            }
+            .semi-textarea, textarea ,#filteredText{
+                height: 150px;
+                font-size: 14px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+        .semi-textarea, textarea, #filteredText {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            padding: 10px;
+            box-sizing: border-box;
+            border-radius: var(--semi-border-radius-large);
+            border: 1px solid black;
+            background-color: var(--semi-color-bg-1);
+            color: var(--semi-color-text-0);
+            transition: all 0.3s;
+        }
+        [theme-mode="dark"] .semi-textarea, [theme-mode="dark"] textarea, [theme-mode="dark"] #filteredText {
+            border: 1px solid white;
+        }
+        .semi-textarea, textarea, #filteredText {
+            border: 1px solid black;
+        }
+        .semi-button {
+            min-width: 120px;
+            border-radius: 8px !important;
+            transition: all 0.2s ease;
+            transform: scale(1);
+        }
+        
+        .semi-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .semi-button:active {
+            transform: scale(0.98);
+        }
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        @media (max-width: 480px) {
+            .theme-toggle {
+                top: 10px;
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="semi-card">
+        <div class="semi-card-header">
+            <h1>Hostlist Compressor</h1>
+            <button class="semi-button semi-button-secondary theme-toggle" id="themeToggleBtn">
+                <i class="semi-icon-sun" style="margin-right: 4px;"></i>切换主题
+            </button>
+        </div>
+        <div class="semi-card-body">
+            <div style="margin-bottom: 20px">
+
+            </div>
+            <div style="margin-bottom: 20px">
+                <textarea id="inputText" placeholder="请在此粘贴您的主机规则，每行一条..."></textarea>
+            </div>
+            <div style="margin-bottom: 20px">
+                <div class="semi-space" style="width: 100%; justify-content: space-between;">
+    <button class="semi-button semi-button-primary" id="compressBtn" style="flex:1;margin:0 4px;">压缩</button>
+    <button class="semi-button semi-button-primary" id="sortBtn" style="flex:1;margin:0 4px;">排序</button>
+    <button class="semi-button semi-button-primary" id="dedupeBtn" style="flex:1;margin:0 4px;">去重</button>
+    <input type="file" id="fileUpload" accept=".txt" style="display:none;">
+    <button class="semi-button semi-button-primary" id="uploadBtn" style="flex:1;margin:0 4px;">上传文件</button>
+    <button class="semi-button semi-button-warning" id="downloadBtn" disabled style="flex:1;margin:0 4px;">下载结果</button>
+    <button class="semi-button semi-button-danger" id="clearBtn" style="flex:1;margin:0 4px;">清空</button>
+    <button class="semi-button semi-button-secondary" id="copyBtn" style="flex:1;margin:0 4px;" title="复制到剪贴板">
+        <i class="semi-icon-copy" style="margin-right: 4px;"></i>复制
+    </button>
+</div>
+            </div>
+            <div class="semi-typography-text" id="stats" style="margin-bottom: 20px; font-style: italic; color: var(--semi-color-text-2);"></div>
+            <div>
+                <h3>输出：</h3>
+                <div style="position: relative;">
+                    <textarea id="outputText" readonly></textarea>
+                </div>
+            </div>
+            <div>
+                <div style="position: relative; display: none;" id="filteredContainer">
+                    <h3>被过滤的规则：</h3>
+                    <textarea id="filteredText" readonly style="height: 150px; border: 1px solid white;"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 保留原有的 JS 脚本逻辑 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            let darkMode = localStorage.getItem('semi-dark-mode') === 'true' || prefersDark;
+
+            function applyTheme() {
+                const body = document.body;
+                if (darkMode) {
+                    body.setAttribute('theme-mode', 'dark');
+                    themeToggleBtn.innerHTML = '<i class="semi-icon-sun" style="margin-right: 4px;"></i>浅色模式';
+                } else {
+                    body.removeAttribute('theme-mode');
+                    themeToggleBtn.innerHTML = '<i class="semi-icon-moon" style="margin-right: 4px;"></i>深色模式';
+                }
+                localStorage.setItem('semi-dark-mode', darkMode);
+                localStorage.setItem('user-theme-preference', darkMode ? 'dark' : 'light');
+            }
+            
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            themeToggleBtn.addEventListener('click', function() {
+                darkMode = !darkMode;
+                applyTheme();
+            });
+
+            const inputText = document.getElementById('inputText');
+            const outputText = document.getElementById('outputText');
+            const filteredText = document.getElementById('filteredText');
+            const compressBtn = document.getElementById('compressBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const stats = document.getElementById('stats');
+
+            clearBtn.addEventListener('click', function() {
+                inputText.value = '';
+                inputText.readOnly = false;
+                inputText.style.textAlign = '';
+                inputText.style.fontSize = '';
+                inputText.style.color = '';
+                outputText.style.display = '';
+                document.querySelector('h3').style.display = '';
+                outputText.value = '';
+                filteredText.value = '';
+                stats.textContent = '';
+                downloadBtn.disabled = true;
+                compressBtn.style.display = '';
+                sortBtn.style.display = '';
+                dedupeBtn.style.display = '';
+            });
+
+            downloadBtn.addEventListener('click', function() {
+                const blob = new Blob([outputText.value], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '压缩后主机列表.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+
+            compressBtn.addEventListener('click', function() {
+                const input = inputText.value.trim();
+                if (!input) {
+                    alert('请先输入规则或上传文件。');
+                    return;
+                }
+                copyBtn.style.display = 'none';
+
+                const rules = input.split('\n').filter(rule => rule.trim() !== '');
+                const compressedRules = compress(rules);
+
+                outputText.value = compressedRules.join('\n');
+                downloadBtn.disabled = false;
+                stats.textContent = `已从 ${rules.length} 条规则压缩为 ${compressedRules.length} 条。`;
+                copyBtn.style.display = 'block';
+            });
+
+            const copyBtn = document.getElementById('copyBtn');
+            const sortBtn = document.getElementById('sortBtn');
+            const dedupeBtn = document.getElementById('dedupeBtn');
+            copyBtn.style.display = 'none';
+            
+            sortBtn.addEventListener('click', function() {
+                const output = outputText.value.trim();
+                if (!output) {
+                    alert('请先压缩规则');
+                    return;
+                }
+                
+                const rules = output.split('\n').filter(rule => rule.trim() !== '');
+                const sortedRules = rules.sort((a, b) => a.localeCompare(b));
+                outputText.value = sortedRules.join('\n');
+            });
+            
+            const fileUpload = document.getElementById('fileUpload');
+            const uploadBtn = document.getElementById('uploadBtn');
+            
+            uploadBtn.addEventListener('click', function() {
+                fileUpload.click();
+            });
+            
+            fileUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                inputText.value = file.name;
+                inputText.readOnly = true;
+                inputText.style.textAlign = 'center';
+                inputText.style.fontSize = '18px';
+                inputText.style.color = 'gray';
+                outputText.style.display = 'none';
+                document.querySelector('h3').style.display = 'none';
+                filteredContainer.style.display = 'none';
+                copyBtn.style.display = 'none';
+                compressBtn.style.display = 'none';
+                sortBtn.style.display = 'none';
+                dedupeBtn.style.display = 'none';
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    const rules = content.split('\n').filter(rule => rule.trim() !== '');
+                    
+                    // 先压缩
+                    let compressedRules = compress(rules);
+                    
+                    // 再去重
+                    const uniqueRules = [...new Set(compressedRules)];
+                    
+                    // 最后排序
+                    const sortedRules = uniqueRules.sort((a, b) => a.localeCompare(b));
+                    
+                    outputText.value = sortedRules.join('\n');
+                    downloadBtn.disabled = false;
+                    stats.textContent = `已从 ${rules.length} 条规则处理为 ${sortedRules.length} 条。`;
+                    
+                    // 修改下载文件名
+                    downloadBtn.addEventListener('click', function() {
+                        const blob = new Blob([outputText.value], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = file.name.replace('.txt', '') + '-processed.txt';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, { once: true });
+                };
+                reader.readAsText(file);
+            });
+            
+            dedupeBtn.addEventListener('click', function() {
+                const input = inputText.value.trim();
+                if (!input) return;
+                
+                const rules = input.split('\n').filter(rule => rule.trim() !== '');
+                const uniqueRules = [...new Set(rules)];
+                outputText.value = uniqueRules.join('\n');
+                stats.textContent = `已从 ${rules.length} 条规则去重为 ${uniqueRules.length} 条。`;
+                downloadBtn.disabled = false;
+            });
+            
+            copyBtn.addEventListener('click', async function() {
+                try {
+                    await navigator.clipboard.writeText(outputText.value);
+                    const originalText = copyBtn.innerHTML;
+                    copyBtn.innerHTML = '<i class="semi-icon-tick" style="margin-right: 4px;"></i>已复制';
+                    setTimeout(() => {
+                        copyBtn.innerHTML = originalText;
+                    }, 2000);
+                } catch (err) {
+                    console.error('复制失败: ', err);
+                    alert('复制失败，请手动复制');
+                }
+            });
+
+            function isEtcHostsRule(rule) {
+                return /^\s*((#|!)?\s*\d+\.\d+\.\d+\.\d+\s+([\w.-]+\s*)+)/.test(rule);
+            }
+
+            function loadEtcHostsRuleProperties(rule) {
+                const parts = rule.split(/\s+/).filter(part => part && !part.startsWith('#') && !part.startsWith('!'));
+                const hostnames = parts.slice(1);
+                return { hostnames };
+            }
+
+            function isJustDomain(rule) {
+                return /^[\w.-]+$/.test(rule.trim());
+            }
+
+            function loadAdblockRuleProperties(rule) {
+                const trimmed = rule.trim();
+                const isWhitelist = trimmed.startsWith('@@');
+                const ruleText = isWhitelist ? trimmed.substring(2) : trimmed;
+                if (/^\|\|[\w.-]+\^$/.test(ruleText)) {
+                    const hostname = ruleText.substring(2, ruleText.length - 1);
+                    return { hostname, whitelist: isWhitelist, options: [] };
+                }
+                throw new Error('复杂规则');
+            }
+
+            function extractHostnames(hostname) {
+                const parts = hostname.split('.');
+                const domains = [];
+                for (let i = 0; i < parts.length; i += 1) {
+                    const domain = parts.slice(i, parts.length).join('.');
+                    domains.push(domain);
+                }
+                return domains;
+            }
+
+            function toAdblockRules(ruleText) {
+                const adblockRules = [];
+                if (isEtcHostsRule(ruleText)) {
+                    const props = loadEtcHostsRuleProperties(ruleText);
+                    for (const hostname of props.hostnames) {
+                        adblockRules.push({
+                            ruleText: `||${hostname}^`,
+                            canCompress: true,
+                            hostname,
+                            originalRuleText: ruleText,
+                        });
+                    }
+                    return adblockRules;
+                }
+                if (isJustDomain(ruleText)) {
+                    return [{
+                        ruleText: `||${ruleText}^`,
+                        canCompress: true,
+                        hostname: ruleText,
+                        originalRuleText: ruleText,
+                    }];
+                }
+                try {
+                    const props = loadAdblockRuleProperties(ruleText);
+                    if (props.hostname && !props.whitelist && Object.keys(props.options).length === 0) {
+                        adblockRules.push({
+                            ruleText,
+                            canCompress: true,
+                            hostname: props.hostname,
+                            originalRuleText: ruleText,
+                        });
+                        return adblockRules;
+                    }
+                } catch (ex) {}
+
+                adblockRules.push({
+                    ruleText,
+                    canCompress: false,
+                    hostname: null,
+                    originalRuleText: ruleText,
+                });
+                return adblockRules;
+            }
+
+            function compress(rules) {
+                const byHostname = {};
+                const filtered = [];
+                const filteredRules = [];
+
+                for (let i = 0; i < rules.length; i += 1) {
+                    const rule = rules[i];
+                    const adblockRules = toAdblockRules(rule);
+                    adblockRules.forEach((adblockRule) => {
+                        if (adblockRule.canCompress) {
+                            if (!byHostname[adblockRule.hostname]) {
+                                filtered.push(adblockRule);
+                                byHostname[adblockRule.hostname] = true;
+                            } else {
+                                filteredRules.push(adblockRule.originalRuleText);
+                            }
+                        } else {
+                            filtered.push(adblockRule);
+                        }
+                    });
+                }
+
+                for (let i = filtered.length - 1; i >= 0; i -= 1) {
+                    const rule = filtered[i];
+                    let discard = false;
+                    if (rule.canCompress) {
+                        const hostnames = extractHostnames(rule.hostname);
+                        for (let j = 1; j < hostnames.length; j += 1) {
+                            const hostname = hostnames[j];
+                            if (byHostname[hostname]) {
+                                discard = true;
+                                filteredRules.push(rule.originalRuleText);
+                                break;
+                            }
+                        }
+                    }
+                    if (discard) {
+                        filtered.splice(i, 1);
+                    }
+                }
+
+                // 更新被过滤规则的显示
+                filteredText.value = filteredRules.join('\n');
+                
+                // 控制被过滤规则容器的显示
+                const filteredContainer = document.getElementById('filteredContainer');
+                if (filteredRules.length > 0 && !inputText.readOnly) {
+                    filteredContainer.style.display = 'block';
+                } else {
+                    filteredContainer.style.display = 'none';
+                }
+
+                return filtered.map((rule) => rule.ruleText);
+            }
+        });
+    </script>
+</body>
+</html>
