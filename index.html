@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>主机列表压缩工具</title>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3e%3cpath d='M2 7h20v2H2zm4 5h12v2H6zm4 5h4v2h-4z'%3e%3c/path%3e%3c/svg%3e">
     <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter -->
@@ -54,7 +56,7 @@
 <body class="bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
 
     <!-- Notification Toast -->
-    <div id="toast-notification" class="fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-md transition-transform transform translate-x-[150%] duration-300 ease-in-out">
+    <div id="toast-notification" class="fixed top-5 right-5 text-white py-2 px-4 rounded-lg shadow-md transition-transform transform translate-x-[150%] duration-300 ease-in-out z-50">
         <p id="toast-message"></p>
     </div>
 
@@ -119,6 +121,16 @@
         </main>
     </div>
 
+    <!-- Footer Section -->
+    <footer class="text-center py-6">
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+            <a href="https://github.com/Cats-Team/Hostlist-Compressor" target="_blank" rel="noopener noreferrer" class="font-medium text-blue-600 dark:text-blue-500 hover:underline">
+                Hostlist Compressor @Cats-Team
+            </a>
+        </p>
+    </footer>
+
+
     <!-- Core Logic Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -136,7 +148,6 @@
             const dedupeBtn = document.getElementById('dedupeBtn');
             const clearBtn = document.getElementById('clearBtn');
             const copyBtn = document.getElementById('copyBtn');
-            const uploadBtn = document.getElementById('uploadBtn');
             const fileUpload = document.getElementById('fileUpload');
             const downloadBtn = document.getElementById('downloadBtn');
             const toast = document.getElementById('toast-notification');
@@ -144,9 +155,20 @@
 
             // --- Toast Notification Logic ---
             let toastTimeout;
-            function showToast(message) {
+            function showToast(message, type = 'error') { // 'error' or 'success'
                 clearTimeout(toastTimeout);
                 toastMessage.textContent = message;
+
+                // Reset colors
+                toast.classList.remove('bg-red-500', 'bg-green-500');
+
+                // Apply new color based on type
+                if (type === 'success') {
+                    toast.classList.add('bg-green-500');
+                } else {
+                    toast.classList.add('bg-red-500');
+                }
+                
                 toast.classList.remove('translate-x-[150%]');
                 toast.classList.add('translate-x-0');
                 toastTimeout = setTimeout(() => {
@@ -168,7 +190,6 @@
                 }
             }
 
-            // Check for saved theme preference or system preference
             const savedTheme = localStorage.getItem('theme');
             const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             let isDarkMode = savedTheme ? savedTheme === 'dark' : systemPrefersDark;
@@ -208,7 +229,7 @@
             compressBtn.addEventListener('click', () => {
                 const input = inputText.value.trim();
                 if (!input) {
-                    showToast('请先输入规则或上传文件。');
+                    showToast('请先输入规则或上传文件', 'error');
                     return;
                 }
                 const rules = input.split('\n').filter(rule => rule.trim() !== '');
@@ -220,42 +241,42 @@
                 downloadBtn.disabled = false;
                 downloadBtn.dataset.filename = 'compressed-hosts.txt';
 
-                stats.textContent = `已从 ${rules.length} 条规则压缩为 ${compressedRules.length} 条。`;
+                stats.textContent = `已从 ${rules.length} 条规则压缩为 ${compressedRules.length} 条`;
                 filteredContainer.style.display = filteredRules.length > 0 ? 'block' : 'none';
             });
             
             sortBtn.addEventListener('click', () => {
                 const output = outputText.value.trim();
                  if (!output) {
-                    showToast('输出区域为空，请先处理规则。');
+                    showToast('输出区域为空，请先处理规则', 'error');
                     return;
                 }
                 const rules = output.split('\n').filter(rule => rule.trim() !== '');
                 const sortedRules = rules.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
                 outputText.value = sortedRules.join('\n');
-                showToast('输出结果已排序。');
+                showToast('输出结果已排序', 'success');
             });
 
             dedupeBtn.addEventListener('click', () => {
                 const targetText = outputText.value.trim() || inputText.value.trim();
                  if (!targetText) {
-                    showToast('输入和输出区域均为空。');
+                    showToast('输入和输出区域均为空', 'error');
                     return;
                 }
                 const rules = targetText.split('\n').filter(rule => rule.trim() !== '');
                 const uniqueRules = [...new Set(rules)];
                 outputText.value = uniqueRules.join('\n');
-                stats.textContent = `已从 ${rules.length} 条规则去重为 ${uniqueRules.length} 条。`;
+                stats.textContent = `已从 ${rules.length} 条规则去重为 ${uniqueRules.length} 条`;
                 downloadBtn.disabled = false;
                 downloadBtn.dataset.filename = 'deduped-hosts.txt';
+                showToast('列表已成功去重', 'success');
             });
 
             copyBtn.addEventListener('click', () => {
                 if (!outputText.value) {
-                    showToast('没有内容可以复制。');
+                    showToast('没有内容可以复制', 'error');
                     return;
                 }
-                // Use a temporary textarea to ensure compatibility, especially in iFrames
                 const tempTextArea = document.createElement('textarea');
                 tempTextArea.value = outputText.value;
                 tempTextArea.style.position = 'absolute';
@@ -264,16 +285,15 @@
                 tempTextArea.select();
                 try {
                     document.execCommand('copy');
-                    showToast('已复制到剪贴板！');
+                    showToast('已复制到剪贴板！', 'success');
                 } catch (err) {
                     console.error('复制失败:', err);
-                    showToast('复制失败，请手动操作。');
+                    showToast('复制失败，请手动操作', 'error');
                 } finally {
                     document.body.removeChild(tempTextArea);
                 }
             });
 
-            // File Upload Logic
             fileUpload.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -282,9 +302,7 @@
                 reader.onload = function(event) {
                     const content = event.target.result;
                     inputText.value = content;
-                    showToast(`文件 '${file.name}' 已加载。`);
                     
-                    // Automatically process the file
                     const rules = content.split('\n').filter(rule => rule.trim() !== '');
                     let { compressedRules, filteredRules } = compress(rules);
                     let uniqueRules = [...new Set(compressedRules)];
@@ -294,126 +312,22 @@
                     filteredText.value = filteredRules.join('\n');
                     downloadBtn.disabled = false;
                     downloadBtn.dataset.filename = `${file.name.replace(/\.txt$/, '')}-processed.txt`;
-                    stats.textContent = `文件处理完成：从 ${rules.length} 条规则生成 ${sortedRules.length} 条。`;
+                    stats.textContent = `文件处理完成：从 ${rules.length} 条规则生成 ${sortedRules.length} 条`;
                     filteredContainer.style.display = filteredRules.length > 0 ? 'block' : 'none';
+                    showToast(`文件 '${file.name}' 已加载并处理完毕`, 'success');
                 };
                 reader.readAsText(file);
             });
 
 
             // --- Core Compression Logic (from original script) ---
-            function isEtcHostsRule(rule) {
-                return /^\s*((#|!)?\s*\d+\.\d+\.\d+\.\d+\s+([\w.-]+\s*)+)/.test(rule);
-            }
-
-            function loadEtcHostsRuleProperties(rule) {
-                const parts = rule.split(/\s+/).filter(part => part && !part.startsWith('#') && !part.startsWith('!'));
-                const hostnames = parts.slice(1);
-                return { hostnames };
-            }
-
-            function isJustDomain(rule) {
-                return /^[\w.-]+$/.test(rule.trim());
-            }
-
-            function loadAdblockRuleProperties(rule) {
-                const trimmed = rule.trim();
-                const isWhitelist = trimmed.startsWith('@@');
-                const ruleText = isWhitelist ? trimmed.substring(2) : trimmed;
-                if (/^\|\|[\w.-]+\^$/.test(ruleText)) {
-                    const hostname = ruleText.substring(2, ruleText.length - 1);
-                    return { hostname, whitelist: isWhitelist, options: [] };
-                }
-                throw new Error('复杂规则');
-            }
-
-            function extractHostnames(hostname) {
-                const parts = hostname.split('.');
-                const domains = [];
-                for (let i = 0; i < parts.length; i += 1) {
-                    const domain = parts.slice(i, parts.length).join('.');
-                    domains.push(domain);
-                }
-                return domains;
-            }
-
-            function toAdblockRules(ruleText) {
-                const adblockRules = [];
-                if (isEtcHostsRule(ruleText)) {
-                    const props = loadEtcHostsRuleProperties(ruleText);
-                    for (const hostname of props.hostnames) {
-                        adblockRules.push({
-                            ruleText: `||${hostname}^`, canCompress: true, hostname, originalRuleText: ruleText,
-                        });
-                    }
-                    return adblockRules;
-                }
-                if (isJustDomain(ruleText)) {
-                    return [{
-                        ruleText: `||${ruleText}^`, canCompress: true, hostname: ruleText, originalRuleText: ruleText,
-                    }];
-                }
-                try {
-                    const props = loadAdblockRuleProperties(ruleText);
-                    if (props.hostname && !props.whitelist && Object.keys(props.options).length === 0) {
-                        adblockRules.push({
-                            ruleText, canCompress: true, hostname: props.hostname, originalRuleText: ruleText,
-                        });
-                        return adblockRules;
-                    }
-                } catch (ex) {}
-
-                adblockRules.push({
-                    ruleText, canCompress: false, hostname: null, originalRuleText: ruleText,
-                });
-                return adblockRules;
-            }
-
-            function compress(rules) {
-                const byHostname = {};
-                const filtered = [];
-                const localFilteredRules = new Set();
-
-                for (const rule of rules) {
-                    const adblockRules = toAdblockRules(rule);
-                    adblockRules.forEach((adblockRule) => {
-                        if (adblockRule.canCompress) {
-                            if (!byHostname[adblockRule.hostname]) {
-                                filtered.push(adblockRule);
-                                byHostname[adblockRule.hostname] = true;
-                            } else {
-                                localFilteredRules.add(adblockRule.originalRuleText);
-                            }
-                        } else {
-                            filtered.push(adblockRule);
-                        }
-                    });
-                }
-
-                for (let i = filtered.length - 1; i >= 0; i -= 1) {
-                    const rule = filtered[i];
-                    let discard = false;
-                    if (rule.canCompress) {
-                        const hostnames = extractHostnames(rule.hostname);
-                        for (let j = 1; j < hostnames.length; j += 1) {
-                            const hostname = hostnames[j];
-                            if (byHostname[hostname]) {
-                                discard = true;
-                                localFilteredRules.add(rule.originalRuleText);
-                                break;
-                            }
-                        }
-                    }
-                    if (discard) {
-                        filtered.splice(i, 1);
-                    }
-                }
-                
-                return {
-                    compressedRules: filtered.map((rule) => rule.ruleText),
-                    filteredRules: Array.from(localFilteredRules)
-                };
-            }
+            function isEtcHostsRule(rule) { return /^\s*((#|!)?\s*\d+\.\d+\.\d+\.\d+\s+([\w.-]+\s*)+)/.test(rule); }
+            function loadEtcHostsRuleProperties(rule) { const parts = rule.split(/\s+/).filter(part => part && !part.startsWith('#') && !part.startsWith('!')); return { hostnames: parts.slice(1) }; }
+            function isJustDomain(rule) { return /^[\w.-]+$/.test(rule.trim()); }
+            function loadAdblockRuleProperties(rule) { const trimmed = rule.trim(); const isWhitelist = trimmed.startsWith('@@'); const ruleText = isWhitelist ? trimmed.substring(2) : trimmed; if (/^\|\|[\w.-]+\^$/.test(ruleText)) { const hostname = ruleText.substring(2, ruleText.length - 1); return { hostname, whitelist: isWhitelist, options: [] }; } throw new Error('复杂规则'); }
+            function extractHostnames(hostname) { const parts = hostname.split('.'); const domains = []; for (let i = 0; i < parts.length; i += 1) { const domain = parts.slice(i, parts.length).join('.'); domains.push(domain); } return domains; }
+            function toAdblockRules(ruleText) { const adblockRules = []; if (isEtcHostsRule(ruleText)) { const props = loadEtcHostsRuleProperties(ruleText); for (const hostname of props.hostnames) { adblockRules.push({ ruleText: `||${hostname}^`, canCompress: true, hostname, originalRuleText: ruleText, }); } return adblockRules; } if (isJustDomain(ruleText)) { return [{ ruleText: `||${ruleText}^`, canCompress: true, hostname: ruleText, originalRuleText: ruleText, }]; } try { const props = loadAdblockRuleProperties(ruleText); if (props.hostname && !props.whitelist && Object.keys(props.options).length === 0) { adblockRules.push({ ruleText, canCompress: true, hostname: props.hostname, originalRuleText: ruleText, }); return adblockRules; } } catch (ex) {} adblockRules.push({ ruleText, canCompress: false, hostname: null, originalRuleText: ruleText, }); return adblockRules; }
+            function compress(rules) { const byHostname = {}; const filtered = []; const localFilteredRules = new Set(); for (const rule of rules) { const adblockRules = toAdblockRules(rule); adblockRules.forEach((adblockRule) => { if (adblockRule.canCompress) { if (!byHostname[adblockRule.hostname]) { filtered.push(adblockRule); byHostname[adblockRule.hostname] = true; } else { localFilteredRules.add(adblockRule.originalRuleText); } } else { filtered.push(adblockRule); } }); } for (let i = filtered.length - 1; i >= 0; i -= 1) { const rule = filtered[i]; let discard = false; if (rule.canCompress) { const hostnames = extractHostnames(rule.hostname); for (let j = 1; j < hostnames.length; j += 1) { const hostname = hostnames[j]; if (byHostname[hostname]) { discard = true; localFilteredRules.add(rule.originalRuleText); break; } } } if (discard) { filtered.splice(i, 1); } } return { compressedRules: filtered.map((rule) => rule.ruleText), filteredRules: Array.from(localFilteredRules) }; }
         });
     </script>
 </body>
