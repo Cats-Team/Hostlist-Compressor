@@ -1,340 +1,307 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN" class=""> <!-- 'dark' class will be toggled here -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hostlist Compressor</title>
-    <link href="https://unpkg.com/@douyinfe/semi-ui@2.78.0/dist/css/semi.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/@douyinfe/semi-ui@2.78.0/dist/umd/semi-ui.min.js"></script>
+    <title>主机列表压缩工具</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Custom styles can be added here if needed */
         body {
-            margin: 0;
-            padding: 40px;
-            background-color: var(--semi-color-bg-1);
-            color: var(--semi-color-text-0);
-            transition: background-color 0.3s, color 0.3s;
+            font-family: 'Inter', sans-serif;
         }
-        .semi-card {
-            max-width: 1000px;
-            margin: auto;
-            padding: 20px;
-            background-color: var(--semi-color-bg-1);
-            transition: background-color 0.3s;
-            box-shadow: none;
+        /* Custom style for the file input button */
+        .btn-file-input {
+            position: relative;
+            overflow: hidden;
         }
-        .semi-textarea, textarea, #filteredText{
-            background-color: var(--semi-color-bg-1);
-            color: var(--semi-color-text-0);
-            border-color: var(--semi-color-border);
-        }
-        
-        @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-            .semi-card {
-                width: 100%;
-                max-width: 100%;
-                padding: 10px;
-                box-shadow: none;
-            }
-            .semi-space {
-                flex-direction: row;
-                flex-wrap: wrap;
-                gap: 8px;
-                justify-content: space-between;
-            }
-            .semi-button {
-                width: calc(50% - 4px);
-                margin-right: 0 !important;
-            }
-            #dedupeBtn {
-                background-color: var(--semi-color-info);
-            }
-            #clearBtn {
-                width: calc(100% - 4px);
-            }
-            .semi-textarea, textarea ,#filteredText{
-                height: 150px;
-                font-size: 14px;
-            }
-            h1 {
-                font-size: 1.5rem;
-            }
-        }
-        .semi-textarea, textarea, #filteredText {
-            width: 100%;
-            height: 200px;
-            font-family: monospace;
-            padding: 10px;
-            box-sizing: border-box;
-            border-radius: var(--semi-border-radius-large);
-            border: 1px solid black;
-            background-color: var(--semi-color-bg-1);
-            color: var(--semi-color-text-0);
-            transition: all 0.3s;
-        }
-        [theme-mode="dark"] .semi-textarea, [theme-mode="dark"] textarea, [theme-mode="dark"] #filteredText {
-            border: 1px solid white;
-        }
-        .semi-textarea, textarea, #filteredText {
-            border: 1px solid black;
-        }
-        .semi-button {
-            min-width: 120px;
-            border-radius: 8px !important;
-            transition: all 0.2s ease;
-            transform: scale(1);
-        }
-        
-        .semi-button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .semi-button:active {
-            transform: scale(0.98);
-        }
-        .theme-toggle {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-        
-        @media (max-width: 480px) {
-            .theme-toggle {
-                top: 10px;
-                right: 10px;
-            }
+        .btn-file-input input[type="file"] {
+            position: absolute;
+            top: 0;
+            right: 0;
+            min-width: 100%;
+            min-height: 100%;
+            font-size: 100px;
+            text-align: right;
+            filter: alpha(opacity=0);
+            opacity: 0;
+            outline: none;
+            background: white;
+            cursor: inherit;
+            display: block;
         }
     </style>
+    <script>
+        // Configure Tailwind to use the 'class' strategy for dark mode
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
 </head>
-<body>
+<body class="bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
 
-    <div class="semi-card">
-        <div class="semi-card-header">
-            <h1>Hostlist Compressor</h1>
-            <button class="semi-button semi-button-secondary theme-toggle" id="themeToggleBtn">
-                <i class="semi-icon-sun" style="margin-right: 4px;"></i>切换主题
-            </button>
-        </div>
-        <div class="semi-card-body">
-            <div style="margin-bottom: 20px">
-
-            </div>
-            <div style="margin-bottom: 20px">
-                <textarea id="inputText" placeholder="请在此粘贴您的主机规则，每行一条..."></textarea>
-            </div>
-            <div style="margin-bottom: 20px">
-                <div class="semi-space" style="width: 100%; justify-content: space-between;">
-    <button class="semi-button semi-button-primary" id="compressBtn" style="flex:1;margin:0 4px;">压缩</button>
-    <button class="semi-button semi-button-primary" id="sortBtn" style="flex:1;margin:0 4px;">排序</button>
-    <button class="semi-button semi-button-primary" id="dedupeBtn" style="flex:1;margin:0 4px;">去重</button>
-    <input type="file" id="fileUpload" accept=".txt" style="display:none;">
-    <button class="semi-button semi-button-primary" id="uploadBtn" style="flex:1;margin:0 4px;">上传文件</button>
-    <button class="semi-button semi-button-warning" id="downloadBtn" disabled style="flex:1;margin:0 4px;">下载结果</button>
-    <button class="semi-button semi-button-danger" id="clearBtn" style="flex:1;margin:0 4px;">清空</button>
-    <button class="semi-button semi-button-secondary" id="copyBtn" style="flex:1;margin:0 4px;" title="复制到剪贴板">
-        <i class="semi-icon-copy" style="margin-right: 4px;"></i>复制
-    </button>
-</div>
-            </div>
-            <div class="semi-typography-text" id="stats" style="margin-bottom: 20px; font-style: italic; color: var(--semi-color-text-2);"></div>
-            <div>
-                <h3>输出：</h3>
-                <div style="position: relative;">
-                    <textarea id="outputText" readonly></textarea>
-                </div>
-            </div>
-            <div>
-                <div style="position: relative; display: none;" id="filteredContainer">
-                    <h3>被过滤的规则：</h3>
-                    <textarea id="filteredText" readonly></textarea>
-                </div>
-            </div>
-        </div>
+    <!-- Notification Toast -->
+    <div id="toast-notification" class="fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-md transition-transform transform translate-x-[150%] duration-300 ease-in-out">
+        <p id="toast-message"></p>
     </div>
 
-    <!-- 保留原有的 JS 脚本逻辑 -->
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <main class="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-5 sm:p-8 space-y-6">
+
+            <!-- Header Section -->
+            <header class="flex justify-between items-center">
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
+                    主机列表压缩工具
+                </h1>
+                <button id="themeToggleBtn" type="button" class="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-50 dark:focus:ring-offset-slate-800 focus:ring-blue-500">
+                    <!-- Sun Icon -->
+                    <svg id="sun-icon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <!-- Moon Icon -->
+                    <svg id="moon-icon" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <span class="sr-only">切换主题</span>
+                </button>
+            </header>
+
+            <!-- Input Section -->
+            <div>
+                <label for="inputText" class="sr-only">输入规则</label>
+                <textarea id="inputText" rows="8" class="w-full p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition font-mono text-slate-700 dark:text-slate-300" placeholder="请在此粘贴您的主机规则，每行一条..."></textarea>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <button id="compressBtn" class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">压缩</button>
+                <button id="sortBtn" class="w-full text-slate-800 dark:text-white bg-slate-200 hover:bg-slate-300 focus:ring-4 focus:ring-slate-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-800">排序</button>
+                <button id="dedupeBtn" class="w-full text-slate-800 dark:text-white bg-slate-200 hover:bg-slate-300 focus:ring-4 focus:ring-slate-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-800">去重</button>
+                <button id="clearBtn" class="w-full text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-red-500 dark:hover:bg-red-600 dark:focus:ring-red-900">清空</button>
+                <div class="btn-file-input col-span-2 sm:col-span-1 lg:col-span-1">
+                     <button id="uploadBtn" class="w-full h-full text-slate-800 dark:text-white bg-slate-200 hover:bg-slate-300 focus:ring-4 focus:ring-slate-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-800">上传文件</button>
+                     <input type="file" id="fileUpload" accept=".txt">
+                </div>
+                <button id="downloadBtn" disabled class="w-full text-white bg-green-600 hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed focus:ring-4 focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-green-500 dark:hover:bg-green-600 dark:focus:ring-green-800 dark:disabled:bg-green-800 dark:disabled:text-slate-400">下载结果</button>
+                <button id="copyBtn" class="w-full text-slate-800 dark:text-white bg-slate-200 hover:bg-slate-300 focus:ring-4 focus:ring-slate-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-800">复制结果</button>
+            </div>
+
+            <!-- Stats & Output Section -->
+            <div class="space-y-6">
+                <p id="stats" class="text-sm text-slate-500 dark:text-slate-400 h-5"></p>
+                
+                <!-- Main Output -->
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">输出：</h3>
+                    <textarea id="outputText" rows="8" readonly class="w-full p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg font-mono text-slate-700 dark:text-slate-300"></textarea>
+                </div>
+
+                <!-- Filtered Rules Output (hidden by default) -->
+                <div id="filteredContainer" class="hidden">
+                     <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">被过滤的规则：</h3>
+                    <textarea id="filteredText" rows="5" readonly class="w-full p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg font-mono text-slate-700 dark:text-slate-300"></textarea>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Core Logic Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            let darkMode = localStorage.getItem('semi-dark-mode') === 'true' || prefersDark;
-
-            function applyTheme() {
-                const body = document.body;
-                if (darkMode) {
-                    body.setAttribute('theme-mode', 'dark');
-                    themeToggleBtn.innerHTML = '<i class="semi-icon-sun" style="margin-right: 4px;"></i>浅色模式';
-                } else {
-                    body.removeAttribute('theme-mode');
-                    themeToggleBtn.innerHTML = '<i class="semi-icon-moon" style="margin-right: 4px;"></i>深色模式';
-                }
-                localStorage.setItem('semi-dark-mode', darkMode);
-                localStorage.setItem('user-theme-preference', darkMode ? 'dark' : 'light');
-            }
-            
+            // --- UI Elements ---
             const themeToggleBtn = document.getElementById('themeToggleBtn');
-            themeToggleBtn.addEventListener('click', function() {
-                darkMode = !darkMode;
-                applyTheme();
-            });
-
+            const sunIcon = document.getElementById('sun-icon');
+            const moonIcon = document.getElementById('moon-icon');
             const inputText = document.getElementById('inputText');
             const outputText = document.getElementById('outputText');
             const filteredText = document.getElementById('filteredText');
-            const compressBtn = document.getElementById('compressBtn');
-            const downloadBtn = document.getElementById('downloadBtn');
-            const clearBtn = document.getElementById('clearBtn');
+            const filteredContainer = document.getElementById('filteredContainer');
             const stats = document.getElementById('stats');
+            const compressBtn = document.getElementById('compressBtn');
+            const sortBtn = document.getElementById('sortBtn');
+            const dedupeBtn = document.getElementById('dedupeBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const fileUpload = document.getElementById('fileUpload');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const toast = document.getElementById('toast-notification');
+            const toastMessage = document.getElementById('toast-message');
 
-            clearBtn.addEventListener('click', function() {
+            // --- Toast Notification Logic ---
+            let toastTimeout;
+            function showToast(message) {
+                clearTimeout(toastTimeout);
+                toastMessage.textContent = message;
+                toast.classList.remove('translate-x-[150%]');
+                toast.classList.add('translate-x-0');
+                toastTimeout = setTimeout(() => {
+                    toast.classList.remove('translate-x-0');
+                    toast.classList.add('translate-x-[150%]');
+                }, 3000);
+            }
+            
+            // --- Theme Toggle Logic ---
+            function applyTheme(isDark) {
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    sunIcon.classList.add('hidden');
+                    moonIcon.classList.remove('hidden');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    sunIcon.classList.remove('hidden');
+                    moonIcon.classList.add('hidden');
+                }
+            }
+
+            // Check for saved theme preference or system preference
+            const savedTheme = localStorage.getItem('theme');
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            let isDarkMode = savedTheme ? savedTheme === 'dark' : systemPrefersDark;
+
+            applyTheme(isDarkMode);
+
+            themeToggleBtn.addEventListener('click', () => {
+                isDarkMode = !isDarkMode;
+                applyTheme(isDarkMode);
+                localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+            });
+
+            // --- Button Event Listeners ---
+            clearBtn.addEventListener('click', () => {
                 inputText.value = '';
-                inputText.readOnly = false;
-                inputText.style.textAlign = '';
-                inputText.style.fontSize = '';
-                inputText.style.color = '';
-                outputText.style.display = '';
-                document.querySelector('h3').style.display = '';
                 outputText.value = '';
                 filteredText.value = '';
                 stats.textContent = '';
                 downloadBtn.disabled = true;
-                compressBtn.style.display = '';
-                sortBtn.style.display = '';
-                dedupeBtn.style.display = '';
+                filteredContainer.style.display = 'none';
+                fileUpload.value = ''; // Reset file input
             });
 
             downloadBtn.addEventListener('click', function() {
+                if (outputText.value === '') return;
                 const blob = new Blob([outputText.value], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = '压缩后主机列表.txt';
+                a.download = this.dataset.filename || 'compressed-hosts.txt';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             });
-
-            compressBtn.addEventListener('click', function() {
+            
+            compressBtn.addEventListener('click', () => {
                 const input = inputText.value.trim();
                 if (!input) {
-                    alert('请先输入规则或上传文件。');
+                    showToast('请先输入规则或上传文件。');
                     return;
                 }
-                copyBtn.style.display = 'none';
-
                 const rules = input.split('\n').filter(rule => rule.trim() !== '');
-                const compressedRules = compress(rules);
-
+                const { compressedRules, filteredRules } = compress(rules);
+                
                 outputText.value = compressedRules.join('\n');
+                filteredText.value = filteredRules.join('\n');
+                
                 downloadBtn.disabled = false;
-                stats.textContent = `已从 ${rules.length} 条规则压缩为 ${compressedRules.length} 条。`;
-                copyBtn.style.display = 'block';
-            });
+                downloadBtn.dataset.filename = 'compressed-hosts.txt';
 
-            const copyBtn = document.getElementById('copyBtn');
-            const sortBtn = document.getElementById('sortBtn');
-            const dedupeBtn = document.getElementById('dedupeBtn');
-            copyBtn.style.display = 'none';
+                stats.textContent = `已从 ${rules.length} 条规则压缩为 ${compressedRules.length} 条。`;
+                filteredContainer.style.display = filteredRules.length > 0 ? 'block' : 'none';
+            });
             
-            sortBtn.addEventListener('click', function() {
+            sortBtn.addEventListener('click', () => {
                 const output = outputText.value.trim();
-                if (!output) {
-                    alert('请先压缩规则');
+                 if (!output) {
+                    showToast('输出区域为空，请先处理规则。');
                     return;
                 }
-                
                 const rules = output.split('\n').filter(rule => rule.trim() !== '');
-                const sortedRules = rules.sort((a, b) => a.localeCompare(b));
+                const sortedRules = rules.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
                 outputText.value = sortedRules.join('\n');
+                showToast('输出结果已排序。');
             });
-            
-            const fileUpload = document.getElementById('fileUpload');
-            const uploadBtn = document.getElementById('uploadBtn');
-            
-            uploadBtn.addEventListener('click', function() {
-                fileUpload.click();
-            });
-            
-            fileUpload.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                inputText.value = file.name;
-                inputText.readOnly = true;
-                inputText.style.textAlign = 'center';
-                inputText.style.fontSize = '18px';
-                inputText.style.color = 'gray';
-                outputText.style.display = 'none';
-                document.querySelector('h3').style.display = 'none';
-                filteredContainer.style.display = 'none';
-                copyBtn.style.display = 'none';
-                compressBtn.style.display = 'none';
-                sortBtn.style.display = 'none';
-                dedupeBtn.style.display = 'none';
-                
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const content = e.target.result;
-                    const rules = content.split('\n').filter(rule => rule.trim() !== '');
-                    
-                    // 先压缩
-                    let compressedRules = compress(rules);
-                    
-                    // 再去重
-                    const uniqueRules = [...new Set(compressedRules)];
-                    
-                    // 最后排序
-                    const sortedRules = uniqueRules.sort((a, b) => a.localeCompare(b));
-                    
-                    outputText.value = sortedRules.join('\n');
-                    downloadBtn.disabled = false;
-                    stats.textContent = `已从 ${rules.length} 条规则处理为 ${sortedRules.length} 条。`;
-                    
-                    // 修改下载文件名
-                    downloadBtn.addEventListener('click', function() {
-                        const blob = new Blob([outputText.value], { type: 'text/plain' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = file.name.replace('.txt', '') + '-processed.txt';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }, { once: true });
-                };
-                reader.readAsText(file);
-            });
-            
-            dedupeBtn.addEventListener('click', function() {
-                const input = inputText.value.trim();
-                if (!input) return;
-                
-                const rules = input.split('\n').filter(rule => rule.trim() !== '');
+
+            dedupeBtn.addEventListener('click', () => {
+                const targetText = outputText.value.trim() || inputText.value.trim();
+                 if (!targetText) {
+                    showToast('输入和输出区域均为空。');
+                    return;
+                }
+                const rules = targetText.split('\n').filter(rule => rule.trim() !== '');
                 const uniqueRules = [...new Set(rules)];
                 outputText.value = uniqueRules.join('\n');
                 stats.textContent = `已从 ${rules.length} 条规则去重为 ${uniqueRules.length} 条。`;
                 downloadBtn.disabled = false;
+                downloadBtn.dataset.filename = 'deduped-hosts.txt';
             });
-            
-            copyBtn.addEventListener('click', async function() {
+
+            copyBtn.addEventListener('click', () => {
+                if (!outputText.value) {
+                    showToast('没有内容可以复制。');
+                    return;
+                }
+                // Use a temporary textarea to ensure compatibility, especially in iFrames
+                const tempTextArea = document.createElement('textarea');
+                tempTextArea.value = outputText.value;
+                tempTextArea.style.position = 'absolute';
+                tempTextArea.style.left = '-9999px';
+                document.body.appendChild(tempTextArea);
+                tempTextArea.select();
                 try {
-                    await navigator.clipboard.writeText(outputText.value);
-                    const originalText = copyBtn.innerHTML;
-                    copyBtn.innerHTML = '<i class="semi-icon-tick" style="margin-right: 4px;"></i>已复制';
-                    setTimeout(() => {
-                        copyBtn.innerHTML = originalText;
-                    }, 2000);
+                    document.execCommand('copy');
+                    showToast('已复制到剪贴板！');
                 } catch (err) {
-                    console.error('复制失败: ', err);
-                    alert('复制失败，请手动复制');
+                    console.error('复制失败:', err);
+                    showToast('复制失败，请手动操作。');
+                } finally {
+                    document.body.removeChild(tempTextArea);
                 }
             });
 
+            // File Upload Logic
+            fileUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const content = event.target.result;
+                    inputText.value = content;
+                    showToast(`文件 '${file.name}' 已加载。`);
+                    
+                    // Automatically process the file
+                    const rules = content.split('\n').filter(rule => rule.trim() !== '');
+                    let { compressedRules, filteredRules } = compress(rules);
+                    let uniqueRules = [...new Set(compressedRules)];
+                    let sortedRules = uniqueRules.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+                    
+                    outputText.value = sortedRules.join('\n');
+                    filteredText.value = filteredRules.join('\n');
+                    downloadBtn.disabled = false;
+                    downloadBtn.dataset.filename = `${file.name.replace(/\.txt$/, '')}-processed.txt`;
+                    stats.textContent = `文件处理完成：从 ${rules.length} 条规则生成 ${sortedRules.length} 条。`;
+                    filteredContainer.style.display = filteredRules.length > 0 ? 'block' : 'none';
+                };
+                reader.readAsText(file);
+            });
+
+
+            // --- Core Compression Logic (from original script) ---
             function isEtcHostsRule(rule) {
                 return /^\s*((#|!)?\s*\d+\.\d+\.\d+\.\d+\s+([\w.-]+\s*)+)/.test(rule);
             }
@@ -376,40 +343,28 @@
                     const props = loadEtcHostsRuleProperties(ruleText);
                     for (const hostname of props.hostnames) {
                         adblockRules.push({
-                            ruleText: `||${hostname}^`,
-                            canCompress: true,
-                            hostname,
-                            originalRuleText: ruleText,
+                            ruleText: `||${hostname}^`, canCompress: true, hostname, originalRuleText: ruleText,
                         });
                     }
                     return adblockRules;
                 }
                 if (isJustDomain(ruleText)) {
                     return [{
-                        ruleText: `||${ruleText}^`,
-                        canCompress: true,
-                        hostname: ruleText,
-                        originalRuleText: ruleText,
+                        ruleText: `||${ruleText}^`, canCompress: true, hostname: ruleText, originalRuleText: ruleText,
                     }];
                 }
                 try {
                     const props = loadAdblockRuleProperties(ruleText);
                     if (props.hostname && !props.whitelist && Object.keys(props.options).length === 0) {
                         adblockRules.push({
-                            ruleText,
-                            canCompress: true,
-                            hostname: props.hostname,
-                            originalRuleText: ruleText,
+                            ruleText, canCompress: true, hostname: props.hostname, originalRuleText: ruleText,
                         });
                         return adblockRules;
                     }
                 } catch (ex) {}
 
                 adblockRules.push({
-                    ruleText,
-                    canCompress: false,
-                    hostname: null,
-                    originalRuleText: ruleText,
+                    ruleText, canCompress: false, hostname: null, originalRuleText: ruleText,
                 });
                 return adblockRules;
             }
@@ -417,10 +372,9 @@
             function compress(rules) {
                 const byHostname = {};
                 const filtered = [];
-                const filteredRules = [];
+                const localFilteredRules = new Set();
 
-                for (let i = 0; i < rules.length; i += 1) {
-                    const rule = rules[i];
+                for (const rule of rules) {
                     const adblockRules = toAdblockRules(rule);
                     adblockRules.forEach((adblockRule) => {
                         if (adblockRule.canCompress) {
@@ -428,7 +382,7 @@
                                 filtered.push(adblockRule);
                                 byHostname[adblockRule.hostname] = true;
                             } else {
-                                filteredRules.push(adblockRule.originalRuleText);
+                                localFilteredRules.add(adblockRule.originalRuleText);
                             }
                         } else {
                             filtered.push(adblockRule);
@@ -445,7 +399,7 @@
                             const hostname = hostnames[j];
                             if (byHostname[hostname]) {
                                 discard = true;
-                                filteredRules.push(rule.originalRuleText);
+                                localFilteredRules.add(rule.originalRuleText);
                                 break;
                             }
                         }
@@ -454,19 +408,11 @@
                         filtered.splice(i, 1);
                     }
                 }
-
-                // 更新被过滤规则的显示
-                filteredText.value = filteredRules.join('\n');
                 
-                // 控制被过滤规则容器的显示
-                const filteredContainer = document.getElementById('filteredContainer');
-                if (filteredRules.length > 0 && !inputText.readOnly) {
-                    filteredContainer.style.display = 'block';
-                } else {
-                    filteredContainer.style.display = 'none';
-                }
-
-                return filtered.map((rule) => rule.ruleText);
+                return {
+                    compressedRules: filtered.map((rule) => rule.ruleText),
+                    filteredRules: Array.from(localFilteredRules)
+                };
             }
         });
     </script>
