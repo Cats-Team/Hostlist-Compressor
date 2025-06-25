@@ -123,11 +123,7 @@
 
     <!-- Footer Section -->
 <footer class="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-center py-6 mt-12">
-  <div 
-    class="emoji text-[1.5rem] mb-4 cursor-pointer transition-colors duration-200 text-slate-800 dark:text-slate-100 select-none" 
-    onclick="alert('Ciallo～(∠・ω< )⌒☆')">
-    Ciallo～(∠・ω< )⌒☆
-  </div>
+  <p id="ciallo-trigger" class="text-[1.5rem] mb-4 cursor-pointer hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors text-slate-800 dark:text-white">Ciallo～(∠・ω< )⌒☆</p>
   <a href="https://github.com/Cats-Team/Hostlist-Compressor" target="_blank" rel="noopener noreferrer"
      class="inline-flex items-center gap-2 font-semibold text-blue-600 dark:text-blue-400 hover:underline transition-all duration-150">
     <span>Hostlist Compressor</span>
@@ -335,6 +331,48 @@
             function extractHostnames(hostname) { const parts = hostname.split('.'); const domains = []; for (let i = 0; i < parts.length; i += 1) { const domain = parts.slice(i, parts.length).join('.'); domains.push(domain); } return domains; }
             function toAdblockRules(ruleText) { const adblockRules = []; if (isEtcHostsRule(ruleText)) { const props = loadEtcHostsRuleProperties(ruleText); for (const hostname of props.hostnames) { adblockRules.push({ ruleText: `||${hostname}^`, canCompress: true, hostname, originalRuleText: ruleText, }); } return adblockRules; } if (isJustDomain(ruleText)) { return [{ ruleText: `||${ruleText}^`, canCompress: true, hostname: ruleText, originalRuleText: ruleText, }]; } try { const props = loadAdblockRuleProperties(ruleText); if (props.hostname && !props.whitelist && Object.keys(props.options).length === 0) { adblockRules.push({ ruleText, canCompress: true, hostname: props.hostname, originalRuleText: ruleText, }); return adblockRules; } } catch (ex) {} adblockRules.push({ ruleText, canCompress: false, hostname: null, originalRuleText: ruleText, }); return adblockRules; }
             function compress(rules) { const byHostname = {}; const filtered = []; const localFilteredRules = new Set(); for (const rule of rules) { const adblockRules = toAdblockRules(rule); adblockRules.forEach((adblockRule) => { if (adblockRule.canCompress) { if (!byHostname[adblockRule.hostname]) { filtered.push(adblockRule); byHostname[adblockRule.hostname] = true; } else { localFilteredRules.add(adblockRule.originalRuleText); } } else { filtered.push(adblockRule); } }); } for (let i = filtered.length - 1; i >= 0; i -= 1) { const rule = filtered[i]; let discard = false; if (rule.canCompress) { const hostnames = extractHostnames(rule.hostname); for (let j = 1; j < hostnames.length; j += 1) { const hostname = hostnames[j]; if (byHostname[hostname]) { discard = true; localFilteredRules.add(rule.originalRuleText); break; } } } if (discard) { filtered.splice(i, 1); } } return { compressedRules: filtered.map((rule) => rule.ruleText), filteredRules: Array.from(localFilteredRules) }; }
+        });
+    </script>
+
+    <!-- Ciallo Modal -->
+    <div id="ciallo-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity duration-300 ease-in-out opacity-0 invisible" aria-labelledby="modal-title" role="dialog">
+        <div id="ciallo-modal-panel" class="inline-block w-full max-w-sm p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white dark:bg-slate-800 shadow-xl rounded-2xl opacity-0 scale-95 duration-300 ease-in-out">
+             <h3 class="text-2xl font-bold text-center text-slate-900 dark:text-white" id="modal-title">Ciallo～(∠・ω< )⌒☆</h3>
+             <p class="text-4xl text-center mt-2 text-slate-500 dark:text-slate-200"></p>
+             <div class="mt-6 text-center">
+                 <button type="button" id="ciallo-modal-close" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500">OK</button>
+             </div>
+        </div>
+    </div>
+
+    <script>
+        // Ciallo Modal Logic
+        const cialloTrigger = document.getElementById('ciallo-trigger');
+        const cialloModal = document.getElementById('ciallo-modal');
+        const cialloModalPanel = document.getElementById('ciallo-modal-panel');
+        const cialloModalClose = document.getElementById('ciallo-modal-close');
+        let modalAutoCloseTimer;
+
+        const openCialloModal = () => {
+            clearTimeout(modalAutoCloseTimer);
+            document.body.classList.add('modal-open');
+            cialloModal.classList.remove('invisible', 'opacity-0');
+            cialloModalPanel.classList.remove('opacity-0', 'scale-95');
+            modalAutoCloseTimer = setTimeout(closeCialloModal, 5000);
+        };
+
+        const closeCialloModal = () => {
+            clearTimeout(modalAutoCloseTimer);
+            document.body.classList.remove('modal-open');
+            cialloModalPanel.classList.add('opacity-0', 'scale-95');
+            cialloModal.classList.add('opacity-0');
+            setTimeout(() => cialloModal.classList.add('invisible'), 300);
+        };
+
+        cialloTrigger.addEventListener('click', openCialloModal);
+        cialloModalClose.addEventListener('click', closeCialloModal);
+        cialloModal.addEventListener('click', (e) => {
+            if (e.target === cialloModal) closeCialloModal();
         });
     </script>
 </body>
