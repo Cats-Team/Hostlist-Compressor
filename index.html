@@ -329,7 +329,35 @@
             function isJustDomain(rule) { return /^[\w.-]+$/.test(rule.trim()); }
             function loadAdblockRuleProperties(rule) { const trimmed = rule.trim(); const isWhitelist = trimmed.startsWith('@@'); const ruleText = isWhitelist ? trimmed.substring(2) : trimmed; if (/^\|\|[\w.-]+\^$/.test(ruleText)) { const hostname = ruleText.substring(2, ruleText.length - 1); return { hostname, whitelist: isWhitelist, options: [] }; } throw new Error('复杂规则'); }
             function extractHostnames(hostname) { const parts = hostname.split('.'); const domains = []; for (let i = 0; i < parts.length; i += 1) { const domain = parts.slice(i, parts.length).join('.'); domains.push(domain); } return domains; }
-            function toAdblockRules(ruleText) { const adblockRules = []; if (isEtcHostsRule(ruleText)) { const props = loadEtcHostsRuleProperties(ruleText); for (const hostname of props.hostnames) { adblockRules.push({ ruleText: `||${hostname}^`, canCompress: true, hostname, originalRuleText: ruleText, }); } return adblockRules; } if (isJustDomain(ruleText)) { return [{ ruleText: `||${ruleText}^`, canCompress: true, hostname: ruleText, originalRuleText: ruleText, }]; } try { const props = loadAdblockRuleProperties(ruleText); if (props.hostname && !props.whitelist && Object.keys(props.options).length === 0) { adblockRules.push({ ruleText, canCompress: true, hostname: props.hostname, originalRuleText: ruleText, }); return adblockRules; } } catch (ex) {} adblockRules.push({ ruleText, canCompress: false, hostname: null, originalRuleText: ruleText, }); return adblockRules; }
+            function toAdblockRules(ruleText) {
+                const adblockRules = [];
+                const trimmed = ruleText.trim();
+                const domainListMatch = trimmed.match(/^DOMAIN(?:-SUFFIX)?,\s*([\w.-]+)\s*$/i);
+                if (domainListMatch) {
+                    const hostname = domainListMatch[1];
+                    adblockRules.push({ ruleText: `||${hostname}^`, canCompress: true, hostname, originalRuleText: ruleText });
+                    return adblockRules;
+                }
+                if (isEtcHostsRule(ruleText)) {
+                    const props = loadEtcHostsRuleProperties(ruleText);
+                    for (const hostname of props.hostnames) {
+                        adblockRules.push({ ruleText: `||${hostname}^`, canCompress: true, hostname, originalRuleText: ruleText });
+                    }
+                    return adblockRules;
+                }
+                if (isJustDomain(ruleText)) {
+                    return [{ ruleText: `||${ruleText}^`, canCompress: true, hostname: ruleText, originalRuleText: ruleText }];
+                }
+                try {
+                    const props = loadAdblockRuleProperties(ruleText);
+                    if (props.hostname && !props.whitelist && Object.keys(props.options).length === 0) {
+                        adblockRules.push({ ruleText, canCompress: true, hostname: props.hostname, originalRuleText: ruleText });
+                        return adblockRules;
+                    }
+                } catch (ex) {}
+                adblockRules.push({ ruleText, canCompress: false, hostname: null, originalRuleText: ruleText });
+                return adblockRules;
+            }
             function compress(rules) { const byHostname = {}; const filtered = []; const localFilteredRules = new Set(); for (const rule of rules) { const adblockRules = toAdblockRules(rule); adblockRules.forEach((adblockRule) => { if (adblockRule.canCompress) { if (!byHostname[adblockRule.hostname]) { filtered.push(adblockRule); byHostname[adblockRule.hostname] = true; } else { localFilteredRules.add(adblockRule.originalRuleText); } } else { filtered.push(adblockRule); } }); } for (let i = filtered.length - 1; i >= 0; i -= 1) { const rule = filtered[i]; let discard = false; if (rule.canCompress) { const hostnames = extractHostnames(rule.hostname); for (let j = 1; j < hostnames.length; j += 1) { const hostname = hostnames[j]; if (byHostname[hostname]) { discard = true; localFilteredRules.add(rule.originalRuleText); break; } } } if (discard) { filtered.splice(i, 1); } } return { compressedRules: filtered.map((rule) => rule.ruleText), filteredRules: Array.from(localFilteredRules) }; }
         });
     </script>
