@@ -93,6 +93,8 @@
                 <button id="sortBtn" class="w-full text-slate-800 dark:text-white bg-slate-200 hover:bg-slate-300 focus:ring-4 focus:ring-slate-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-800">排序</button>
                 <button id="dedupeBtn" class="w-full text-slate-800 dark:text-white bg-slate-200 hover:bg-slate-300 focus:ring-4 focus:ring-slate-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-800">去重</button>
                 <button id="clearBtn" class="w-full text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-red-500 dark:hover:bg-red-600 dark:focus:ring-red-900">清空</button>
+                <button id="includeWildcardsBtn" class="w-full text-slate-800 dark:text-white bg-slate-200 hover:bg-slate-300 focus:ring-4 focus:ring-slate-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-800 border-2 border-transparent" data-active="false">包含通配符</button>
+                <button id="includeRegexBtn" class="w-full text-slate-800 dark:text-white bg-slate-200 hover:bg-slate-300 focus:ring-4 focus:ring-slate-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-800 border-2 border-transparent" data-active="false">包含正则</button>
                 <div class="btn-file-input col-span-2 sm:col-span-1 lg:col-span-1">
                      <button id="uploadBtn" class="w-full h-full text-slate-800 dark:text-white bg-slate-200 hover:bg-slate-300 focus:ring-4 focus:ring-slate-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-150 ease-in-out dark:bg-slate-700 dark:hover:bg-slate-600 dark:focus:ring-slate-800">上传文件</button>
                      <input type="file" id="fileUpload" accept=".txt">
@@ -153,6 +155,8 @@
             const copyBtn = document.getElementById('copyBtn');
             const fileUpload = document.getElementById('fileUpload');
             const downloadBtn = document.getElementById('downloadBtn');
+            const includeWildcardsBtn = document.getElementById('includeWildcardsBtn');
+            const includeRegexBtn = document.getElementById('includeRegexBtn');
             const toast = document.getElementById('toast-notification');
             const toastMessage = document.getElementById('toast-message');
 
@@ -206,6 +210,29 @@
             });
 
             // --- Button Event Listeners ---
+            
+            // Toggle buttons for include-wildcards and include-regex
+            function toggleButton(btn) {
+                const isActive = btn.dataset.active === 'true';
+                if (isActive) {
+                    btn.dataset.active = 'false';
+                    btn.classList.remove('border-blue-500', 'dark:border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30');
+                    btn.classList.add('border-transparent');
+                } else {
+                    btn.dataset.active = 'true';
+                    btn.classList.remove('border-transparent');
+                    btn.classList.add('border-blue-500', 'dark:border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/30');
+                }
+            }
+            
+            includeWildcardsBtn.addEventListener('click', () => {
+                toggleButton(includeWildcardsBtn);
+            });
+            
+            includeRegexBtn.addEventListener('click', () => {
+                toggleButton(includeRegexBtn);
+            });
+            
             clearBtn.addEventListener('click', () => {
                 inputText.value = '';
                 outputText.value = '';
@@ -236,7 +263,9 @@
                     return;
                 }
                 const rules = input.split('\n').filter(rule => rule.trim() !== '');
-                const { compressedRules, filteredRules } = compress(rules);
+                const includeWildcards = includeWildcardsBtn.dataset.active === 'true';
+                const includeRegex = includeRegexBtn.dataset.active === 'true';
+                const { compressedRules, filteredRules } = compress(rules, includeWildcards, includeRegex);
                 
                 outputText.value = compressedRules.join('\n');
                 filteredText.value = filteredRules.join('\n');
@@ -307,7 +336,9 @@
                     inputText.value = content;
                     
                     const rules = content.split('\n').filter(rule => rule.trim() !== '');
-                    let { compressedRules, filteredRules } = compress(rules);
+                    const includeWildcards = includeWildcardsBtn.dataset.active === 'true';
+                    const includeRegex = includeRegexBtn.dataset.active === 'true';
+                    let { compressedRules, filteredRules } = compress(rules, includeWildcards, includeRegex);
                     let uniqueRules = [...new Set(compressedRules)];
                     let sortedRules = uniqueRules.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
                     
@@ -323,92 +354,335 @@
             });
 
 
-            // --- Core Compression Logic (from original script) ---
-            function isEtcHostsRule(rule) { return /^\s*((#|!)?\s*\d+\.\d+\.\d+\.\d+\s+([\w.-]+\s*)+)/.test(rule); }
-            function loadEtcHostsRuleProperties(rule) { const parts = rule.split(/\s+/).filter(part => part && !part.startsWith('#') && !part.startsWith('!')); return { hostnames: parts.slice(1) }; }
-            function isJustDomain(rule) { return /^[\w.-]+$/.test(rule.trim()); }
-            function loadAdblockRuleProperties(rule) { const trimmed = rule.trim(); const isWhitelist = trimmed.startsWith('@@'); const ruleText = isWhitelist ? trimmed.substring(2) : trimmed; if (/^\|\|[\w.-]+\^$/.test(ruleText)) { const hostname = ruleText.substring(2, ruleText.length - 1); return { hostname, whitelist: isWhitelist, options: [] }; } throw new Error('复杂规则'); }
-            function extractHostnames(hostname) { const parts = hostname.split('.'); const domains = []; for (let i = 0; i < parts.length; i += 1) { const domain = parts.slice(i, parts.length).join('.'); domains.push(domain); } return domains; }
-            function toAdblockRules(ruleText) {
-                const adblockRules = [];
-                const trimmed = ruleText.trim();
-                const domainListMatch = trimmed.match(/^DOMAIN(?:-SUFFIX)?,\s*([\w.-]+)\s*$/i);
-                if (domainListMatch) {
-                    const hostname = domainListMatch[1];
-                    adblockRules.push({ ruleText: `||${hostname}^`, canCompress: true, hostname, originalRuleText: ruleText });
-                    return adblockRules;
+            // --- Core Compression Logic (Ported from Python) ---
+            
+            // Constants & Regex
+            const DOMAIN_PREFIX = "||";
+            const DOMAIN_SEPARATOR = "^";
+            const WILDCARD = "*";
+            const WILDCARD_PART = "*.";
+            
+            const ANY_PATTERN_MODIFIER = new Set(["denyallow", "badfilter", "client"]);
+            const SUPPORTED_MODIFIERS = new Set([
+                "important", "~important", "ctag", "dnstype", "dnsrewrite",
+                ...ANY_PATTERN_MODIFIER
+            ]);
+            
+            const RE_ETC_HOSTS = /^\s*((?:#|!)?\s*\d+\.\d+\.\d+\.\d+\s+([\w\.-]+\s*)+)/;
+            const RE_IP_LIKE = /^\|?\|?\d{1,3}(?:\.\d{1,3}){3}\^?$/;
+            const RE_VALID_DOMAIN_CHARS = /^[a-zA-Z0-9\-.*|^]+$/;
+            const RE_ADBLOCK_SIMPLE = /^\|\|[\w\.\-\*]+\^$/;
+            const RE_DOMAIN_SUFFIX_LIST = /^DOMAIN(?:-SUFFIX)?,\s*([\w\.\-\*]+)/i;
+            const RE_OUTPUT_FILTER = /^\|\|(?:\*|(?:\*\.)?[a-z0-9*](?:[a-z0-9*\-]{0,61}[a-z0-9*])?)(?:\.[a-z0-9*](?:[a-z0-9*\-]{0,61}[a-z0-9*])?)+\^$/i;
+            
+            // RuleValidator Class
+            class RuleValidator {
+                constructor(allowIp = false) {
+                    this.allowIp = allowIp;
+                    this._prevRemoved = false;
                 }
-                if (isEtcHostsRule(ruleText)) {
-                    const props = loadEtcHostsRuleProperties(ruleText);
-                    for (const hostname of props.hostnames) {
-                        adblockRules.push({ ruleText: `||${hostname}^`, canCompress: true, hostname, originalRuleText: ruleText });
+                
+                static isComment(line) {
+                    const trimmed = line.trimStart();
+                    return trimmed.startsWith('!') || trimmed.startsWith('#');
+                }
+                
+                _validHostname(hostname, ruleText, hasLimitMod) {
+                    hostname = hostname.trim().toLowerCase();
+                    
+                    if (!hostname) return false;
+                    
+                    // IP Check
+                    const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+                    if (isIp && !this.allowIp) {
+                        console.debug(`Invalid hostname (IP not allowed): ${hostname} in ${ruleText}`);
+                        return false;
                     }
-                    return adblockRules;
-                }
-                if (isJustDomain(ruleText)) {
-                    return [{ ruleText: `||${ruleText}^`, canCompress: true, hostname: ruleText, originalRuleText: ruleText }];
-                }
-                try {
-                    const props = loadAdblockRuleProperties(ruleText);
-                    if (props.hostname && !props.whitelist && Object.keys(props.options).length === 0) {
-                        adblockRules.push({ ruleText, canCompress: true, hostname: props.hostname, originalRuleText: ruleText });
-                        return adblockRules;
+                    
+                    // Public Suffix Check
+                    if (!hostname.includes('.') && !isIp && !hasLimitMod && hostname !== "localhost") {
+                        console.debug(`Matching whole TLD/Suffix not allowed: ${hostname} in ${ruleText}`);
+                        return false;
                     }
-                } catch (ex) {}
-                adblockRules.push({ ruleText, canCompress: false, hostname: null, originalRuleText: ruleText });
-                return adblockRules;
+                    
+                    return true;
+                }
+                
+                _validEtcHosts(rule) {
+                    const parts = rule.split(/\s+/);
+                    const hosts = parts.filter(p => p && !p.startsWith('#') && !p.startsWith('!'));
+                    if (hosts.length < 2) return false;
+                    
+                    const hostnames = hosts.slice(1);
+                    return hostnames.every(h => this._validHostname(h, rule, false));
+                }
+                
+                _validAdblock(rule) {
+                    // Check for DOMAIN-SUFFIX/DOMAIN format first
+                    const domainMatch = RE_DOMAIN_SUFFIX_LIST.exec(rule);
+                    if (domainMatch) {
+                        const domain = domainMatch[1];
+                        if (RE_IP_LIKE.test(domain)) return false;
+                        return true;
+                    }
+                    
+                    // Parse Modifiers
+                    let hasLimitMod = false;
+                    let base = rule;
+                    
+                    if (rule.includes('$')) {
+                        const parts = rule.split('$');
+                        if (parts.length !== 2) return false;
+                        
+                        base = parts[0];
+                        const opts = parts[1];
+                        const options = opts.split(',');
+                        
+                        for (const opt of options) {
+                            const name = opt.split('=')[0].trim();
+                            if (!SUPPORTED_MODIFIERS.has(name)) {
+                                console.debug(`Unsupported modifier ${name}: ${rule}`);
+                                return false;
+                            }
+                            if (ANY_PATTERN_MODIFIER.has(name)) {
+                                hasLimitMod = true;
+                            }
+                        }
+                    }
+                    
+                    const trimmedPattern = base.trim();
+                    
+                    // Length Check
+                    if (trimmedPattern.length < 5) {
+                        console.debug(`Rule too short: ${rule}`);
+                        return false;
+                    }
+                    
+                    // Char Check (Skip regex rules)
+                    if (!(trimmedPattern.startsWith('/') && trimmedPattern.endsWith('/'))) {
+                        const toTest = trimmedPattern.replace(/^[:\/]+/, '');
+                        if (!RE_VALID_DOMAIN_CHARS.test(toTest)) {
+                            console.debug(`Invalid chars in rule: ${rule}`);
+                            return false;
+                        }
+                    }
+                    
+                    // Domain Validation
+                    if (trimmedPattern.startsWith(DOMAIN_PREFIX) && trimmedPattern.includes(DOMAIN_SEPARATOR)) {
+                        const sepIdx = trimmedPattern.indexOf(DOMAIN_SEPARATOR);
+                        const wildIdx = trimmedPattern.indexOf(WILDCARD);
+                        
+                        // Invalid: ||example.org^test*
+                        if (wildIdx !== -1 && wildIdx > sepIdx) return false;
+                        
+                        const domainPart = trimmedPattern.substring(DOMAIN_PREFIX.length, sepIdx);
+                        
+                        // Handle wildcards
+                        if (wildIdx !== -1) {
+                            if (domainPart.startsWith(WILDCARD_PART)) {
+                                const cleanDomain = domainPart.replace(WILDCARD_PART, "");
+                                if (!cleanDomain.includes('.')) {
+                                    return this._validHostname(cleanDomain, rule, hasLimitMod);
+                                }
+                                return true;
+                            }
+                            return true;
+                        }
+                        
+                        if (!this._validHostname(domainPart, rule, hasLimitMod)) {
+                            return false;
+                        }
+                        
+                        // Check trailing garbage
+                        if (trimmedPattern.length > sepIdx + 1 && trimmedPattern[sepIdx + 1] !== '|') {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                }
+                
+                isValid(rule) {
+                    if (!rule.trim() || RuleValidator.isComment(rule)) {
+                        return true;
+                    }
+                    if (RE_ETC_HOSTS.test(rule)) {
+                        return this._validEtcHosts(rule);
+                    }
+                    return this._validAdblock(rule);
+                }
+                
+                validate(rules) {
+                    const filtered = [...rules];
+                    const removedLog = [];
+                    
+                    // Iterate backwards
+                    for (let i = filtered.length - 1; i >= 0; i--) {
+                        const line = filtered[i];
+                        const isValidRule = this.isValid(line);
+                        const isEmptyOrComment = !line.trim() || RuleValidator.isComment(line);
+                        
+                        if (!isValidRule) {
+                            this._prevRemoved = true;
+                            removedLog.push(line);
+                            filtered.splice(i, 1);
+                        } else if (this._prevRemoved && isEmptyOrComment) {
+                            filtered.splice(i, 1);
+                        } else {
+                            this._prevRemoved = false;
+                        }
+                    }
+                    
+                    return { validRules: filtered, removedRules: removedLog };
+                }
             }
-function compress(rules) {
-                const byHostname = {};
-                const filtered = [];
-                const localFilteredRules = new Set();
-
-                for (const rule of rules) {
-                    const adblockRules = toAdblockRules(rule);
-                    adblockRules.forEach((adblockRule) => {
-                        if (adblockRule.canCompress) {
-                            if (!byHostname[adblockRule.hostname]) {
-                                filtered.push(adblockRule);
-                                byHostname[adblockRule.hostname] = true;
+            
+            // Parse Rule Function
+            function parseRule(ruleText) {
+                ruleText = ruleText.trim();
+                const res = [];
+                
+                // 1. Domain Lists (DOMAIN, example.com)
+                const mDomain = RE_DOMAIN_SUFFIX_LIST.exec(ruleText);
+                if (mDomain) {
+                    const host = mDomain[1];
+                    if (!RE_IP_LIKE.test(host)) {
+                        res.push({ ruleText: `||${host}^`, canCompress: true, hostname: host, originalText: ruleText });
+                    }
+                    return res;
+                }
+                
+                // 2. /etc/hosts
+                if (RE_ETC_HOSTS.test(ruleText)) {
+                    const parts = ruleText.split(/\s+/);
+                    const hosts = parts.filter(p => p && !p.startsWith('#') && !p.startsWith('!')).slice(1);
+                    for (const h of hosts) {
+                        if (!RE_IP_LIKE.test(h)) {
+                            res.push({ ruleText: `||${h}^`, canCompress: true, hostname: h, originalText: ruleText });
+                        }
+                    }
+                    return res;
+                }
+                
+                // 3. Pure Domain (example.com)
+                if (RE_VALID_DOMAIN_CHARS.test(ruleText) && ruleText.includes('.') &&
+                    !ruleText.startsWith('/') && !ruleText.startsWith('||')) {
+                    if (!RE_IP_LIKE.test(ruleText)) {
+                        res.push({ ruleText: `||${ruleText}^`, canCompress: true, hostname: ruleText, originalText: ruleText });
+                    }
+                    return res;
+                }
+                
+                // 4. Standard Adblock matches ||...^
+                if (ruleText.startsWith("||") && ruleText.endsWith("^")) {
+                    const inner = ruleText.substring(2, ruleText.length - 1);
+                    if (!RE_IP_LIKE.test(inner) && !inner.includes('*')) {
+                        res.push({ ruleText, canCompress: true, hostname: inner, originalText: ruleText });
+                        return res;
+                    }
+                }
+                
+                // Fallback: Uncompressible
+                res.push({ ruleText, canCompress: false, hostname: null, originalText: ruleText });
+                return res;
+            }
+            
+            // Compress Rules Function
+            function compressRules(rules, includeWildcards = false, includeRegex = false) {
+                const seenHosts = new Set();
+                const compressible = [];
+                const filteredText = [];
+                const keptWildcards = [];
+                const keptRegex = [];
+                
+                // Phase 1: Classification & Deduplication
+                for (const line of rules) {
+                    const parsedList = parseRule(line);
+                    if (parsedList.length === 0) {
+                        filteredText.push(line);
+                        continue;
+                    }
+                    
+                    for (const r of parsedList) {
+                        if (r.canCompress && r.hostname) {
+                            if (!seenHosts.has(r.hostname)) {
+                                compressible.push(r);
+                                seenHosts.add(r.hostname);
                             } else {
-                                localFilteredRules.add(adblockRule.originalRuleText);
+                                filteredText.push(r.originalText);
                             }
                         } else {
-                            localFilteredRules.add(adblockRule.originalRuleText);
-                        }
-                    });
-                }
-
-                for (let i = filtered.length - 1; i >= 0; i -= 1) {
-                    const rule = filtered[i];
-                    let discard = false;
-                    if (rule.canCompress) {
-                        const hostnames = extractHostnames(rule.hostname);
-                        for (let j = 1; j < hostnames.length; j += 1) {
-                            const hostname = hostnames[j];
-                            if (byHostname[hostname]) {
-                                discard = true;
-                                localFilteredRules.add(rule.originalRuleText);
-                                break;
+                            const isCmt = r.ruleText.trimStart().startsWith('!') || r.ruleText.trimStart().startsWith('#');
+                            const isRegex = r.ruleText.startsWith('/') && r.ruleText.endsWith('/');
+                            
+                            if (includeWildcards && r.ruleText.includes('*') && !isCmt) {
+                                keptWildcards.push(r.ruleText);
+                            } else if (includeRegex && isRegex && !isCmt) {
+                                keptRegex.push(r.ruleText);
+                            } else {
+                                filteredText.push(r.originalText);
                             }
                         }
                     }
-                    if (discard) {
-                        filtered.splice(i, 1);
-                    }
                 }
-
-                const SIMPLE_ADB_RE = /^\|\|[\w.-]+\^$/;
-                const finalCompressed = [];
-                for (const r of filtered) {
-                    if (SIMPLE_ADB_RE.test(r.ruleText)) {
-                        finalCompressed.push(r.ruleText);
+                
+                // Phase 2: Redundancy Removal
+                const finalList = [];
+                for (const r of compressible) {
+                    const parts = r.hostname.split('.');
+                    let covered = false;
+                    
+                    for (let i = 1; i < parts.length; i++) {
+                        const parent = parts.slice(i).join('.');
+                        if (seenHosts.has(parent)) {
+                            covered = true;
+                            break;
+                        }
+                    }
+                    
+                    if (covered) {
+                        filteredText.push(r.originalText);
                     } else {
-                        localFilteredRules.add(r.originalRuleText);
+                        if (RE_OUTPUT_FILTER.test(r.ruleText)) {
+                            finalList.push(r.ruleText);
+                        } else {
+                            filteredText.push(r.originalText);
+                        }
                     }
                 }
-
-                return { compressedRules: finalCompressed, filteredRules: Array.from(localFilteredRules) };
+                
+                // Phase 3: Final Merge
+                const mergedOutput = [...finalList, ...keptWildcards, ...keptRegex];
+                const strictlyValidatedOutput = [];
+                
+                for (const rule of mergedOutput) {
+                    const isRegex = rule.startsWith('/') && rule.endsWith('/');
+                    if (isRegex || RE_OUTPUT_FILTER.test(rule)) {
+                        strictlyValidatedOutput.push(rule);
+                    } else {
+                        filteredText.push(rule);
+                    }
+                }
+                
+                return { compressedRules: strictlyValidatedOutput, filteredRules: filteredText };
+            }
+            
+            // Main Compress Function
+            function compress(rules, includeWildcards = false, includeRegex = false) {
+                // Step 1: Strict Validation
+                const validator = new RuleValidator(false);
+                const { validRules, removedRules } = validator.validate(rules);
+                
+                console.log(`验证域名: ${rules.length} -> ${validRules.length} (移除 ${removedRules.length} 条)`);
+                
+                // Step 2: Compression
+                const { compressedRules, filteredRules } = compressRules(validRules, includeWildcards, includeRegex);
+                
+                const allFiltered = [...removedRules, ...filteredRules];
+                
+                console.log(`压缩完成 - ${rules.length} -> ${compressedRules.length} (移除 ${allFiltered.length} 条)`);
+                
+                return { compressedRules, filteredRules: allFiltered };
             }
         });
     </script>
