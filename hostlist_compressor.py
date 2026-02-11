@@ -34,6 +34,7 @@ RE_IP_LIKE = re.compile(r"^\|?\|?\d{1,3}(?:\.\d{1,3}){3}\^?$")
 RE_VALID_DOMAIN_CHARS = re.compile(r"^[a-zA-Z0-9\-.*|^]+$")
 RE_ADBLOCK_SIMPLE = re.compile(r"^\|\|[\w\.\-\*]+\^$")
 RE_DOMAIN_SUFFIX_LIST = re.compile(r"^DOMAIN(?:-SUFFIX)?,\s*([\w\.\-\*]+)", re.IGNORECASE)
+RE_SINGLE_PIPE_DOMAIN = re.compile(r"^\|([a-zA-Z0-9\.\-\*]+)\^$")
 
 # Output Filter: Standard adblock domain rule (||domain.com^)
 RE_OUTPUT_FILTER = re.compile(
@@ -231,13 +232,26 @@ def parse_rule(rule_text: str) -> List[AdblockRule]:
                 res.append(AdblockRule(f"||{h}^", True, h, rule_text))
         return res
 
-    # 3. Pure Domain (example.com) - strict check
-    if RE_VALID_DOMAIN_CHARS.match(rule_text) and '.' in rule_text and not rule_text.startswith('/') and not rule_text.startswith('||'):
+    # 3. Single pipe domain format |domain^ -> ||domain^
+    m_single_pipe = RE_SINGLE_PIPE_DOMAIN.match(rule_text)
+    if m_single_pipe:
+        host = m_single_pipe.group(1)
+        if not RE_IP_LIKE.match(host):
+            converted_rule = f"||{host}^"
+            # If contains wildcard, mark as uncompressible
+            if '*' in host:
+                res.append(AdblockRule(converted_rule, False, None, rule_text))
+            else:
+                res.append(AdblockRule(converted_rule, True, host, rule_text))
+            return res
+
+    # 4. Pure Domain (example.com) - strict check
+    if RE_VALID_DOMAIN_CHARS.match(rule_text) and '.' in rule_text and not rule_text.startswith('/') and not rule_text.startswith('||') and not rule_text.startswith('|'):
          if not RE_IP_LIKE.match(rule_text):
              res.append(AdblockRule(f"||{rule_text}^", True, rule_text, rule_text))
          return res
 
-    # 4. Standard Adblock matches ||...^
+    # 5. Standard Adblock matches ||...^
     if rule_text.startswith("||") and rule_text.endswith("^"):
         inner = rule_text[2:-1]
         # Only allow plain domains to be "Compressible", wildcards fall to fallback
